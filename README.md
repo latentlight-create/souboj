@@ -23,4 +23,13 @@ Kreativita (kreslí se prstem, každý na své půlce):
 - Vybarvi – vybarvi obrázek uvnitř čáry, kdo první, má bod
 - Hádej obrázek – obrázek se pomalu kreslí, kdo první pozná, co to je, má bod
 
+Taktika (střídají se na společném poli uprostřed):
+
+- Tečky a čtverečky – spoj dvě sousední tečky čarou, kdo uzavře čtvereček, získá ho a hraje znovu (malé 4×4 / velké 6×6 pole)
+- Piškvorky – křížky proti kolečkům, pět v řadě vyhrává
+
+Pro tři – s mámou:
+
+- Pozor, vařečka! – děti sbírají bonbóny na své půlce, máma má uprostřed dvě vařečky (červenou a modrou). Drží = vařečka se zvedne nad dítětem, pustí = plácne. Kdo má v tu chvíli prst na displeji, přijde o 5 bonbónů a dostane je máma. Po minutě vyhrává, kdo má nejvíc.
+
 Vše je v jednom souboru `index.html`, bez sestavování. Testovací háček: `?test` zpřístupní `window.__souboj`.

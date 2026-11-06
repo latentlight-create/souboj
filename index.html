@@ -125,6 +125,39 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;margin:0;to
 .gopt{font-size:calc(var(--u)*3.8);padding:calc(var(--u)*1.3) calc(var(--u)*2.6);border-radius:calc(var(--u)*2.4);background:#fff;color:var(--ink);box-shadow:0 calc(var(--u)*.7) 0 rgba(0,0,0,.25);min-width:calc(var(--u)*19);line-height:1.1}
 .gopt.ok{background:var(--green);color:#fff}
 .gopt.bad{background:#ffd0d0;color:var(--rd)}
+/* taktika: střídání na společném poli */
+#board[data-phase=play].g-boxes .side,#board[data-phase=play].g-pisk .side{flex:0 0 auto}
+#board[data-phase=play].g-boxes .zone,#board[data-phase=play].g-pisk .zone{flex:none;height:calc(var(--u)*11);padding:0 calc(var(--u)*2)}
+#board[data-phase=play].g-boxes .mid,#board[data-phase=play].g-pisk .mid{flex:1 1 0}
+.turn{font-size:calc(var(--u)*4.6);line-height:1.1;opacity:.6}
+.zone.tah .turn{opacity:1;animation:pop .4s}
+.zone.tah{box-shadow:inset 0 0 0 calc(var(--u)*.9) #fff}
+.mid canvas.bx{position:absolute;inset:0;width:100%;height:100%;display:block}
+.pg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;gap:2px;background:#c9cfe0;border:2px solid #c9cfe0;border-radius:calc(var(--u)*1.4);overflow:hidden}
+.pc{background:#fffdf6;display:grid;place-items:center;min-width:0;min-height:0}
+.pc svg{width:80%;height:80%;pointer-events:none}
+.pc.last{background:#fff3c4}
+.pc.win{background:#ffd84d}
+/* pozor, vařečka */
+#board[data-phase=play].g-spoon .mid{flex:0 0 calc(var(--u)*22)}
+.cands{position:absolute;inset:0}
+.cand{position:absolute;width:calc(var(--u)*15);height:calc(var(--u)*15);margin:calc(var(--u)*-7.5) 0 0 calc(var(--u)*-7.5);font-size:calc(var(--u)*11);line-height:1;display:grid;place-items:center}
+.cand span{display:block;pointer-events:none;animation:molein .18s ease-out}
+.cand.hit span{animation:molehit .22s forwards}
+.cand.out span{animation:moleout .2s forwards}
+.lzw{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*1);pointer-events:none;z-index:3;animation:varuj .45s ease-in-out infinite alternate}
+.lzw .lzi{font-size:calc(var(--u)*26);line-height:1;transform:rotate(-30deg)}
+.lzw b{font-size:calc(var(--u)*9);color:#fff;text-shadow:0 calc(var(--u)*.6) 0 rgba(0,0,0,.3)}
+.plesk{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:calc(var(--u)*10);color:#fff;text-shadow:0 calc(var(--u)*.7) 0 rgba(0,0,0,.35);white-space:nowrap;pointer-events:none;z-index:4}
+.plesk.ukaz{animation:pop .4s}
+.zone.zasah{animation:shakex .3s 2;filter:brightness(.7)}
+.mama{position:absolute;inset:0;display:flex;flex-direction:column;gap:calc(var(--u)*1);padding:calc(var(--u)*1.2);background:repeating-linear-gradient(45deg,#ffe7a0 0 calc(var(--u)*2),#ffd96b calc(var(--u)*2) calc(var(--u)*4))}
+.lz{flex:1 1 0;border-radius:calc(var(--u)*2.4);font-size:calc(var(--u)*5.5);color:#fff;box-shadow:0 calc(var(--u)*.7) 0 rgba(0,0,0,.25);letter-spacing:.3em;line-height:1}
+.lz.l0{background:var(--r)} .lz.l1{background:var(--b)}
+.lz:active{transform:translateY(calc(var(--u)*.4))}
+.msc{flex:none;text-align:center;font-size:calc(var(--u)*3.4);line-height:1;color:var(--ink)}
+.tally .tm{color:var(--yellow);font-size:.7em}
+@keyframes varuj{from{background:rgba(255,201,60,.12)}to{background:rgba(255,201,60,.5)}}
 /* konfety */
 .cf{position:absolute;top:-6%;width:calc(var(--u)*1.6);height:calc(var(--u)*2.4);border-radius:calc(var(--u)*.4);animation:fall linear forwards;pointer-events:none;z-index:4}
 /* menu */
@@ -172,7 +205,7 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;margin:0;to
   <div id="menu">
     <h1><i class="cr">SOU</i><i class="cy">⚡</i><i class="cb">BOJ</i></h1>
     <p class="tag">Dva hráči, jeden iPad. Položte ho na stůl a sedněte si naproti sobě.</p>
-    <div class="tally"><span class="tr"><span id="n0"></span> <span id="w0">0</span></span><span>:</span><span class="tb"><span id="w1">0</span> <span id="n1"></span></span></div>
+    <div class="tally"><span class="tr"><span id="n0"></span> <span id="w0">0</span></span><span>:</span><span class="tb"><span id="w1">0</span> <span id="n1"></span></span><span class="tm" id="wmw" hidden>· Máma <span id="wm">0</span></span></div>
     <div class="gamesw" id="games"></div>
     <div class="opts" id="opts"></div>
   </div>
@@ -188,7 +221,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 
 /* ---------- nastavení ---------- */
 const KEY='souboj-v1';
-let S={seat:'short',hc:-1,muted:false,names:['Červená','Modrá'],wins:[0,0],iy:[0,1],mat:[0,1],kr:[0,1]};
+let S={seat:'short',hc:-1,muted:false,names:['Červená','Modrá'],wins:[0,0],iy:[0,1],mat:[0,1],kr:[0,1],box:0,tah:0,wm:0};
 try{ const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s&&typeof s==='object') S=Object.assign(S,s); }catch(e){}
 function save(){ try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} }
 
@@ -320,6 +353,13 @@ function kzHead(p,html){ const h=Z[p].querySelector('.kzhead'); if(h) h.innerHTM
 function vyhodnotKolo(g,w,doKolika){ if(g.done&&w>=0) return; g.done=true; clearTimeout(g.rt); if(w>=0){ setScore(w,score[w]+1); Snd.ding(); }
   [0,1].forEach(q=>{ Z[q].classList.remove('outp'); kresliArt(g.c[q],g.pic,w>=0?SVETLA[w]:'#ffe08a'); kzHead(q,'<span class="kzt">Je to <b>'+esc(g.pic.n)+'</b>! '+(w<0?'':q===w?'Bod pro tebe!':'Soupeř byl rychlejší.')+'</span>'); });
   if(score[0]>=doKolika||score[1]>=doKolika) later(()=>finish(score[0]>score[1]?0:1),1800); else later(()=>g.round(),2600); }
+
+/* ---------- tahové hry na společném poli uprostřed ---------- */
+function ptMid(e){ let bx=e.clientX,by=e.clientY; if(board._rot){ const t=bx; bx=by; by=board._vw-t; } return [bx-MID.offsetLeft,by-MID.offsetTop]; }
+function kdoZacina(){ if(S.hc>=0) return S.hc; S.tah=1-(S.tah||0); save(); return S.tah; }
+function setTah(g,p,txt){ g.na=p; [0,1].forEach(q=>{ Z[q].classList.toggle('tah',q===p); Z[q].innerHTML='<div class="turn">'+(q===p?(txt||'Jsi na tahu ✋'):'Hraje soupeř…')+'</div>'; }); }
+const SVG_X='<svg viewBox="0 0 10 10"><path d="M2.2 2.2L7.8 7.8M7.8 2.2L2.2 7.8" stroke="#d42a43" stroke-width="1.5" stroke-linecap="round"/></svg>';
+const SVG_O='<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="3" fill="none" stroke="#1a5bbd" stroke-width="1.4"/></svg>';
 
 /* ---------- hry ---------- */
 const GAMES={
@@ -558,12 +598,97 @@ const GAMES={
         kzHead(q,'<span class="kzt">Je to <b>'+esc(this.pic.n)+'</b>! '+(w<0?'':q===w?'Bod pro tebe!':'Soupeř byl rychlejší.')+'</span>'); });
       if(score[0]>=5||score[1]>=5) later(()=>finish(score[0]>score[1]?0:1),1800); else later(()=>this.round(),2400); },
     relayout(){ this.c=[0,1].map(p=>kzMeasure(p)); if(this.done) [0,1].forEach(q=>kresliArt(this.c[q],this.pic,'#ffe08a')); } },
+  /* ----- taktika: střídají se na společném poli ----- */
+  boxes:{name:'Tečky a čtverečky',emoji:'🔳',color:'#ffe0b3',desc:'Spojujte tečky čarami. Kdo uzavře čtvereček, získá ho a hraje znovu.',
+    rules:'Střídáte se. Ťukni mezi dvě sousední tečky, nebo táhni prstem od tečky k tečce, a nakresli čáru. Kdo nakreslí čtvrtou stranu čtverečku, získá ho a hraje znovu. Kdo má na konci víc čtverečků, vyhrál.',
+    extra:()=>'<div class="row"><button class="pill'+(S.box?'':' on')+'" data-act="box" data-v="0">malé pole</button><button class="pill'+(S.box?' on':'')+'" data-act="box" data-v="1">velké pole</button></div>',
+    start(){ const n=S.box===1?6:4; this.n=n; this.mer(); const key={}; this.E=[]; this.B=[];
+      const add=(r1,c1,r2,c2)=>{ key[r1+','+c1+','+r2+','+c2]=this.E.length; this.E.push({a:[r1,c1],b:[r2,c2],o:-1}); };
+      for(let r=0;r<=this.rows;r++) for(let c=0;c<this.cols;c++) add(r,c,r,c+1);
+      for(let r=0;r<this.rows;r++) for(let c=0;c<=this.cols;c++) add(r,c,r+1,c);
+      for(let r=0;r<this.rows;r++) for(let c=0;c<this.cols;c++) this.B.push({r,c,o:-1,e:[key[r+','+c+','+r+','+(c+1)],key[(r+1)+','+c+','+(r+1)+','+(c+1)],key[r+','+c+','+(r+1)+','+c],key[r+','+(c+1)+','+(r+1)+','+(c+1)]]});
+      this.key=key; this.last=-1; this.drag=null; this.konec=false; setTah(this,kdoZacina()); this.draw(); },
+    mer(){ const W=MID.clientWidth,H=MID.clientHeight; let cols=this.n,rows=this.n; if(!this.E){ if(W>H*1.25) cols=Math.round(this.n*W/H); else if(H>W*1.25) rows=Math.round(this.n*H/W); this.cols=cols; this.rows=rows; }
+      if(!MID.querySelector('canvas.bx')) MID.innerHTML='<canvas class="bx"></canvas>'; const cv=MID.querySelector('canvas.bx'),dpr=Math.min(2,devicePixelRatio||1);
+      cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); this.x=cv.getContext('2d'); this.x.setTransform(dpr,0,0,dpr,0,0); this.x.lineCap='round'; this.W=W; this.H=H;
+      const u=parseFloat(board.style.getPropertyValue('--u'))||8, m=Math.max(20,u*10,Math.min(W,H)*.07); this.cs=Math.min((W-2*m)/this.cols,(H-2*m)/this.rows); this.ox=(W-this.cs*this.cols)/2; this.oy=(H-this.cs*this.rows)/2; },
+    xy(r,c){ return [this.ox+c*this.cs,this.oy+r*this.cs]; },
+    bod(q){ const c=Math.round((q[0]-this.ox)/this.cs),r=Math.round((q[1]-this.oy)/this.cs); if(r<0||c<0||r>this.rows||c>this.cols) return null; const d=this.xy(r,c); return Math.hypot(d[0]-q[0],d[1]-q[1])<=this.cs*.42?[r,c]:null; },
+    najdi(a,b){ const k1=a.concat(b).join(','),k2=b.concat(a).join(','); return this.key[k1]!=null?this.key[k1]:this.key[k2]; },
+    seg(E){ const A=this.xy(...E.a),B=this.xy(...E.b),x=this.x; x.beginPath(); x.moveTo(A[0],A[1]); x.lineTo(B[0],B[1]); x.stroke(); },
+    draw(){ const x=this.x,cs=this.cs; x.clearRect(0,0,this.W,this.H);
+      x.textAlign='center'; x.textBaseline='middle'; x.font='800 '+(cs*.42)+'px "Baloo 2",system-ui,sans-serif';
+      this.B.forEach(b=>{ if(b.o<0) return; const [X,Y]=this.xy(b.r,b.c); x.fillStyle=SVETLA[b.o]; x.fillRect(X+cs*.06,Y+cs*.06,cs*.88,cs*.88); x.fillStyle=BARVA[b.o]; x.fillText('★',X+cs/2,Y+cs/2); });
+      x.setLineDash([cs*.06,cs*.12]); x.strokeStyle='rgba(27,29,58,.2)'; x.lineWidth=Math.max(2,cs*.04); this.E.forEach(E=>{ if(E.o<0) this.seg(E); }); x.setLineDash([]);
+      if(this.last>=0){ x.strokeStyle='#ffc93c'; x.lineWidth=Math.max(9,cs*.22); this.seg(this.E[this.last]); }
+      x.lineWidth=Math.max(5,cs*.11); this.E.forEach(E=>{ if(E.o<0) return; x.strokeStyle=BARVA[E.o]; this.seg(E); });
+      const d=this.drag; if(d&&d.od&&d.q){ const A=this.xy(...d.od); x.globalAlpha=.45; x.strokeStyle=BARVA[this.na]; x.beginPath(); x.moveTo(A[0],A[1]); x.lineTo(d.q[0],d.q[1]); x.stroke(); x.globalAlpha=1; }
+      x.fillStyle='#1b1d3a'; for(let r=0;r<=this.rows;r++) for(let c=0;c<=this.cols;c++){ const [X,Y]=this.xy(r,c); x.beginPath(); x.arc(X,Y,Math.max(5,cs*.085),0,7); x.fill(); } },
+    hrana(i){ const E=this.E[i]; if(!E||E.o>=0||this.konec) return; const p=this.na; E.o=p; this.last=i; Snd.tap(p); let z=0;
+      this.B.forEach(b=>{ if(b.o<0&&b.e.includes(i)&&b.e.every(j=>this.E[j].o>=0)){ b.o=p; z++; } });
+      if(z){ setScore(p,score[p]+z); Snd.ding(); }
+      this.draw();
+      if(this.E.every(e=>e.o>=0)){ this.konec=true; later(()=>finish(score[0]>score[1]?0:score[1]>score[0]?1:-1),1000); return; }
+      setTah(this,z?p:1-p,z?'Čtvereček! Hraješ znovu ✋':null); },
+    tap(e){ if(!MID.contains(e.target)||this.konec) return; const q=ptMid(e); this.drag={id:e.pointerId,s:q,od:this.bod(q),q:null}; },
+    move(e){ const d=this.drag; if(!d||d.id!==e.pointerId) return; d.q=ptMid(e); if(d.od) this.draw(); },
+    up(e){ const d=this.drag; if(!d||d.id!==e.pointerId) return; this.drag=null; const q=ptMid(e);
+      if(d.od&&Math.hypot(q[0]-d.s[0],q[1]-d.s[1])>this.cs*.45){ const k=this.bod(q); if(k&&Math.abs(k[0]-d.od[0])+Math.abs(k[1]-d.od[1])===1){ const i=this.najdi(d.od,k); if(i!=null&&this.E[i].o<0){ this.hrana(i); return; } } this.draw(); return; }
+      let best=-1,bd=1e9; this.E.forEach((E,i)=>{ if(E.o>=0) return; const A=this.xy(...E.a),B=this.xy(...E.b),vx=B[0]-A[0],vy=B[1]-A[1],t=((q[0]-A[0])*vx+(q[1]-A[1])*vy)/(vx*vx+vy*vy); if(t<.12||t>.88) return; const dd=Math.hypot(A[0]+t*vx-q[0],A[1]+t*vy-q[1]); if(dd<bd){ bd=dd; best=i; } });
+      if(best>=0&&bd<this.cs*.38) this.hrana(best); else this.draw(); },
+    relayout(){ this.mer(); this.draw(); } },
+  pisk:{name:'Piškvorky',emoji:'⭕',color:'#d7f9ff',desc:'Křížky proti kolečkům. Kdo první postaví pět v řadě, vyhrál.',
+    rules:'Střídáte se a ťukáte do políček. Červená kreslí křížky, modrá kolečka. Kdo první udělá pět svých značek v řadě, rovně nebo šikmo, vyhrál.',
+    start(){ const W=MID.clientWidth,H=MID.clientHeight,u=parseFloat(board.style.getPropertyValue('--u'))||8,cell=u*7.4;
+      this.cols=Math.max(7,Math.min(13,Math.floor((W-u*20)/cell))); this.rows=Math.max(7,Math.min(16,Math.floor((H-16)/cell)));
+      this.g=new Array(this.cols*this.rows).fill(-1); this.over=false; this.last=-1;
+      MID.innerHTML='<div class="pg" style="grid-template-columns:repeat('+this.cols+',1fr);grid-template-rows:repeat('+this.rows+',1fr)">'+this.g.map((_,i)=>'<button class="pc" data-cell="'+i+'"></button>').join('')+'</div>';
+      this.mer(); setTah(this,kdoZacina()); },
+    mer(){ const pg=MID.querySelector('.pg'); if(!pg) return; const u=parseFloat(board.style.getPropertyValue('--u'))||8, cs=Math.floor(Math.min((MID.clientWidth-u*20)/this.cols,(MID.clientHeight-16)/this.rows)); pg.style.width=cs*this.cols+'px'; pg.style.height=cs*this.rows+'px'; },
+    pet(i,p){ const C=this.cols,R=this.rows,r0=Math.floor(i/C),c0=i%C;
+      for(const [dr,dc] of [[0,1],[1,0],[1,1],[1,-1]]){ const cells=[i]; for(const s of [1,-1]){ let r=r0+dr*s,c=c0+dc*s; while(r>=0&&r<R&&c>=0&&c<C&&this.g[r*C+c]===p){ cells.push(r*C+c); r+=dr*s; c+=dc*s; } } if(cells.length>=5) return cells; }
+      return null; },
+    tap(e){ const b=e.target.closest('[data-cell]'); if(!b||this.over) return; const i=+b.dataset.cell; if(this.g[i]>=0) return; const p=this.na; this.g[i]=p;
+      const l=this.last>=0&&MID.querySelector('[data-cell="'+this.last+'"]'); if(l) l.classList.remove('last'); this.last=i;
+      b.innerHTML=p===0?SVG_X:SVG_O; b.classList.add('last'); Snd.tap(p);
+      const w=this.pet(i,p); if(w){ this.over=true; w.forEach(j=>{ const c=MID.querySelector('[data-cell="'+j+'"]'); if(c) c.classList.add('win'); }); setScore(p,1); Snd.ding(); later(()=>finish(p),1600); return; }
+      if(this.g.every(v=>v>=0)){ this.over=true; later(()=>finish(-1),900); return; }
+      setTah(this,1-p); },
+    relayout(){ this.mer(); } },
+  /* ----- pro tři: dvě děti proti sobě a máma proti oběma ----- */
+  spoon:{name:'Pozor, vařečka!',emoji:'🥄',color:'#ffb4a2',desc:'Pro tři. Děti sbírají bonbóny a máma jim to kazí vařečkou.',
+    rules:'Ťukáním sbírej bonbóny na své půlce. Máma má uprostřed vařečku. Když se nad tebou zvedne, dej ruce pryč! Koho plácne, přijde o 5 bonbónů a dostane je máma. Po minutě vyhraje, kdo má nejvíc, i když to bude máma.',
+    start(){ this.mama=0; this.frozen=[0,0]; this.last=[0,0]; this.act=[new Set(),new Set()]; this.wind=null; this.cd=0;
+      [0,1].forEach(p=>{ Z[p].innerHTML='<div class="cands" id="cd'+p+'"></div><div class="lzw" id="lw'+p+'" hidden><span class="lzi">🥄</span><b>POZOR!</b></div><div class="plesk" id="pl'+p+'" hidden></div>'; });
+      MID.innerHTML='<div class="mama"><button class="lz l1" data-spoon="1">🥄🥄🥄</button><div class="msc">🥄 Máma <b id="msc">0</b> · drž a pusť</div><button class="lz l0" data-spoon="0">🥄🥄🥄</button></div>';
+      if(S.hc>=0) setScore(S.hc,5);
+      const tok=this.tok={}; const loop=p=>{ if(cur!==this||this.tok!==tok||phase!=='play') return; this.spawn(p); later(()=>loop(p),rnd(420,650)); }; loop(0); loop(1);
+      timer(60,()=>this.konec()); },
+    line(){ return esc(S.names[0])+' '+score[0]+' : '+score[1]+' '+esc(S.names[1])+' · Máma '+this.mama; },
+    spawn(p){ if(Date.now()<this.frozen[p]||(this.wind&&this.wind.p===p)) return; const box=$('#cd'+p); if(!box||box.children.length>=3) return;
+      const b=document.createElement('button'); b.className='cand'; b.dataset.c='1'; b.innerHTML='<span>'+pick(['🍬','🍭','🍫','🍩','🍪','🧁'])+'</span>'; b.style.left=rnd(12,86)+'%'; b.style.top=rnd(16,80)+'%'; box.appendChild(b);
+      later(()=>{ if(b.isConnected&&!b.classList.contains('hit')){ b.classList.add('out'); setTimeout(()=>b.remove(),200); } },rnd(1500,2000)); },
+    tap(e){ const sp=e.target.closest('[data-spoon]'); if(sp){ this.napriah(+sp.dataset.spoon,e.pointerId); return; }
+      const p=zoneOf(e.target); if(p<0) return; this.last[p]=Date.now(); this.act[p].add(e.pointerId);
+      if(Date.now()<this.frozen[p]) return; const c=e.target.closest('[data-c]'); if(!c||c.classList.contains('hit')) return;
+      c.classList.add('hit'); setTimeout(()=>c.remove(),220); setScore(p,score[p]+1); Snd.tap(p); },
+    up(e){ [0,1].forEach(p=>this.act[p].delete(e.pointerId)); if(this.wind&&this.wind.id===e.pointerId) this.pust(); },
+    napriah(p,id){ if(this.wind||Date.now()<this.cd) return; const w=this.wind={p,id,t:Date.now()}; const lw=$('#lw'+p); if(lw) lw.hidden=false;
+      Snd.tone(300,.5,{type:'sine',vol:.08,slide:700}); later(()=>{ if(this.wind===w) this.plesk(); },2000); },
+    pust(){ const w=this.wind; if(!w||w.ceka) return; const held=Date.now()-w.t; if(held>=350) this.plesk(); else { w.ceka=true; later(()=>{ if(this.wind===w) this.plesk(); },350-held); } },
+    plesk(){ const w=this.wind; if(!w) return; this.wind=null; const p=w.p,lw=$('#lw'+p),pl=$('#pl'+p); if(lw) lw.hidden=true;
+      const hit=this.act[p].size>0||Date.now()-this.last[p]<300;
+      if(hit){ setScore(p,score[p]-Math.min(5,score[p])); this.mama+=5; const m=$('#msc'); if(m) m.textContent=this.mama; this.frozen[p]=Date.now()+1500; this.cd=Date.now()+800;
+        const box=$('#cd'+p); if(box) box.innerHTML=''; Snd.tone(110,.35,{type:'square',vol:.15,slide:55}); Z[p].classList.add('zasah'); later(()=>Z[p].classList.remove('zasah'),700); if(pl) pl.textContent='PLESK! −5 🍬'; }
+      else { this.cd=Date.now()+1200; Snd.tone(520,.25,{type:'sine',vol:.08,slide:200}); if(pl) pl.textContent='Vedle! 😜'; }
+      if(pl){ pl.hidden=false; pl.classList.remove('ukaz'); void pl.offsetWidth; pl.classList.add('ukaz'); later(()=>{ pl.hidden=true; },1100); } },
+    konec(){ const s=[score[0],score[1],this.mama],m=Math.max(...s),k=s.map((v,i)=>v===m?i:-1).filter(i=>i>=0); finish(k.length===1?k[0]:-1); } },
 };
-const SEKCE=[{t:'Postřeh a rychlost',ids:['tug','react','tiles','moles','iy']},{t:'Počítání',ids:['mat','race','bal','mult']},{t:'Kreativita',ids:['kres','dots','trace','fill','guess']}];
+const SEKCE=[{t:'Postřeh a rychlost',ids:['tug','react','tiles','moles','iy']},{t:'Počítání',ids:['mat','race','bal','mult']},{t:'Kreativita',ids:['kres','dots','trace','fill','guess']},{t:'Taktika',ids:['boxes','pisk']},{t:'Pro tři: s mámou',ids:['spoon']}];
 
 /* ---------- průběh: menu → připraveni → odpočet → hra → výsledek ---------- */
 function renderMenu(){
-  [0,1].forEach(p=>{ $('#n'+p).textContent=S.names[p]; $('#w'+p).textContent=S.wins[p]; });
+  [0,1].forEach(p=>{ $('#n'+p).textContent=S.names[p]; $('#w'+p).textContent=S.wins[p]; }); $('#wm').textContent=S.wm||0; $('#wmw').hidden=!S.wm;
   $('#games').innerHTML=SEKCE.map(sk=>'<h3 class="sect">'+sk.t+'</h3><div class="games">'+sk.ids.map(id=>{ const g=GAMES[id]; return '<button class="game" data-act="game" data-g="'+id+'" style="background:'+g.color+'"><span class="em">'+g.emoji+'</span><span><b>'+g.name+'</b><small>'+g.desc+'</small></span></button>'; }).join('')+'</div>').join('');
   $('#opts').innerHTML=[
     ['seat','Sedíme u '+(S.seat==='short'?'kratších':'delších')+' stran iPadu'],
@@ -571,10 +696,10 @@ function renderMenu(){
     ['mute','Zvuk: '+(S.muted?'vypnutý':'zapnutý')],
     ['names','Jména hráčů'],['reset','Vynulovat výhry']].map(o=>'<button class="opt" data-act="'+o[0]+'">'+esc(o[1])+'</button>').join('');
 }
-function showMenu(){ clearAll(); cur=null; LAYER.innerHTML=''; MID.innerHTML=''; Z.forEach(z=>{ z.innerHTML=''; z.classList.remove('outp'); }); board.className=''; $('#exitgo').hidden=true; setPhase('menu'); renderMenu(); }
+function showMenu(){ clearAll(); cur=null; LAYER.innerHTML=''; MID.innerHTML=''; Z.forEach(z=>{ z.innerHTML=''; z.classList.remove('outp','tah','zasah'); }); board.className=''; $('#exitgo').hidden=true; setPhase('menu'); renderMenu(); }
 function openGame(id){
   clearAll(); cur=GAMES[id]; cur.id=id; board.className='g-'+id; LAYER.innerHTML=''; MID.innerHTML=''; score=[0,0]; ready=[false,false]; $('#exitgo').hidden=true; setPhase('ready'); renderHud();
-  [0,1].forEach(p=>{ Z[p].classList.remove('outp'); Z[p].innerHTML='<div class="card"><h2>'+cur.emoji+' '+cur.name+'</h2><p>'+cur.rules+'</p>'+(cur.extra?cur.extra(p):'')+(S.hc===p?'<p>Máš náskok.</p>':'')+'<button class="big" data-act="ready" data-p="'+p+'">Jsem připraven ✋</button></div>'; });
+  [0,1].forEach(p=>{ Z[p].classList.remove('outp','tah','zasah'); Z[p].innerHTML='<div class="card"><h2>'+cur.emoji+' '+cur.name+'</h2><p>'+cur.rules+'</p>'+(cur.extra?cur.extra(p):'')+(S.hc===p?'<p>Máš náskok.</p>':'')+'<button class="big" data-act="ready" data-p="'+p+'">Jsem připraven ✋</button></div>'; });
 }
 function countdown(){
   setPhase('count'); let n=3;
@@ -584,9 +709,9 @@ function countdown(){
 }
 function finish(w){
   if(phase!=='play') return; clearAll(); setPhase('result'); LAYER.innerHTML=''; MID.innerHTML='';
-  if(w>=0){ S.wins[w]++; save(); Snd.fanfare(); confetti(w); } else Snd.ding();
-  const line=esc(S.names[0])+' '+score[0]+' : '+score[1]+' '+esc(S.names[1]);
-  [0,1].forEach(p=>{ Z[p].classList.remove('outp'); Z[p].innerHTML='<div class="card res"><h2>'+(w<0?'Remíza!':p===w?'🏆 VÝHRA!':'Příště to vyjde!')+'</h2><p>'+line+'</p><div class="row" id="rb'+p+'"></div></div>'; });
+  if(w===2){ S.wm=(S.wm||0)+1; save(); Snd.fanfare(); confetti(0); confetti(1); } else if(w>=0){ S.wins[w]++; save(); Snd.fanfare(); confetti(w); } else Snd.ding();
+  const line=cur&&cur.line?cur.line():esc(S.names[0])+' '+score[0]+' : '+score[1]+' '+esc(S.names[1]);
+  [0,1].forEach(p=>{ Z[p].classList.remove('outp','tah','zasah'); Z[p].innerHTML='<div class="card res"><h2>'+(w<0?'Remíza!':w===2?'🥄 Vyhrála máma!':p===w?'🏆 VÝHRA!':'Příště to vyjde!')+'</h2><p>'+line+'</p><div class="row" id="rb'+p+'"></div></div>'; });
   later(()=>{ [0,1].forEach(p=>{ const r=$('#rb'+p); if(r) r.innerHTML='<button class="big" data-act="again">Znovu</button><button class="big ghost" data-act="menu">Jiná hra</button>'; }); },1100);
 }
 function act(a,el){
@@ -597,11 +722,12 @@ function act(a,el){
   else if(a==='exit'){ const g=$('#exitgo'); g.hidden=!g.hidden; clearTimeout(exitT); if(!g.hidden) exitT=setTimeout(()=>{ g.hidden=true; },2500); }
   else if(a==='iy'){ S.iy[+el.dataset.p]=+el.dataset.v; save(); el.parentNode.querySelectorAll('.pill').forEach(b=>b.classList.toggle('on',b===el)); Snd.tick(); }
   else if(a==='lvl'){ S[el.dataset.k][+el.dataset.p]=+el.dataset.v; save(); el.parentNode.querySelectorAll('.pill').forEach(b=>b.classList.toggle('on',b===el)); Snd.tick(); }
+  else if(a==='box'){ S.box=+el.dataset.v; save(); document.querySelectorAll('[data-act=box]').forEach(b=>b.classList.toggle('on',+b.dataset.v===S.box)); Snd.tick(); }
   else if(a==='seat'){ S.seat=S.seat==='short'?'long':'short'; save(); layout(); renderMenu(); }
   else if(a==='hc'){ S.hc=S.hc<1?S.hc+1:-1; save(); renderMenu(); }
   else if(a==='mute'){ S.muted=!S.muted; save(); renderMenu(); if(!S.muted) Snd.tick(); }
   else if(a==='names'){ [0,1].forEach(p=>{ let n=null; try{ n=prompt('Jméno hráče ('+(p===0?'červená':'modrá')+' strana):',S.names[p]); }catch(e){} if(n&&n.trim()) S.names[p]=n.trim().slice(0,12); }); save(); renderMenu(); }
-  else if(a==='reset'){ S.wins=[0,0]; save(); renderMenu(); }
+  else if(a==='reset'){ S.wins=[0,0]; S.wm=0; save(); renderMenu(); }
 }
 
 /* ---------- ovládání: v menu klik, ve hře okamžitě při doteku (víc prstů najednou) ---------- */
