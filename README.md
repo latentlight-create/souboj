@@ -15,4 +15,12 @@ Počítání (každý hráč si před hrou zvolí lehčí nebo těžší příkl
 - Balónky – praskni balónek se správným výsledkem, hraje se 45 vteřin
 - Násobky – najdi v mřížce všech pět násobků zadaného čísla dřív než soupeř
 
-Vše je v jednom souboru `index.html`, bez sestavování.
+Kreativita (kreslí se prstem, každý na své půlce):
+
+- Dokresli – z pár čar a nápovědy dokresli obrázek, pak si hráči navzájem dají hvězdičky
+- Spoj tečky – spoj tažením prstu čísla od 1 do konce, kdo první dokončí obrázek, má bod (lehčí/těžší = méně/víc teček)
+- Obtáhni – obtáhni čárkované čáry obrázku, kdo první obtáhne celý, má bod
+- Vybarvi – vybarvi obrázek uvnitř čáry, kdo první, má bod
+- Hádej obrázek – obrázek se pomalu kreslí, kdo první pozná, co to je, má bod
+
+Vše je v jednom souboru `index.html`, bez sestavování. Testovací háček: `?test` zpřístupní `window.__souboj`.

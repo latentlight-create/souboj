@@ -108,6 +108,23 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;margin:0;to
 .num{width:calc(var(--u)*16.5);height:calc(var(--u)*10.5);border-radius:calc(var(--u)*2.6);background:#fff;color:var(--ink);font-size:calc(var(--u)*5.6);box-shadow:0 calc(var(--u)*.7) 0 rgba(0,0,0,.22);line-height:1;font-variant-numeric:tabular-nums}
 .num.ok{background:var(--green);color:#fff}
 .num.bad{background:#ffd0d0;color:var(--rd);animation:shakex .3s}
+/* kreativita: kreslicí plocha v polovině hráče */
+.kz{position:absolute;inset:0;display:flex;flex-direction:column;gap:calc(var(--u)*1.2);padding:calc(var(--u)*1.4) calc(var(--u)*2)}
+.kzhead,.kzfoot{flex:none;display:flex;align-items:center;justify-content:center;gap:calc(var(--u)*1.4);flex-wrap:wrap}
+.kzt{font-size:calc(var(--u)*4.2);line-height:1.1;color:#fff}
+.kzt b{color:var(--yellow)}
+.kzpct{font-size:calc(var(--u)*4.2);color:#fff;font-variant-numeric:tabular-nums;min-width:3.4em;text-align:right}
+.kzb{font-size:calc(var(--u)*3.3);padding:calc(var(--u)*1.1) calc(var(--u)*3);border-radius:999px;background:#fff;color:var(--ink);box-shadow:0 calc(var(--u)*.6) 0 rgba(0,0,0,.25);line-height:1.15}
+.kzb.on{background:var(--green);color:#fff}
+.kzb.dim{opacity:.4}
+.kzcv{flex:1 1 0;min-height:0;position:relative;background:var(--paper);border-radius:calc(var(--u)*3);overflow:hidden}
+.kzcv canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.kzwait{position:absolute;inset:0;display:grid;place-items:center;background:rgba(255,248,231,.55);font-size:calc(var(--u)*5);color:var(--ink);pointer-events:none}
+.sw{width:calc(var(--u)*7.2);height:calc(var(--u)*7.2);border-radius:50%;box-shadow:0 calc(var(--u)*.5) 0 rgba(0,0,0,.25),inset 0 0 0 calc(var(--u)*.5) rgba(255,255,255,.7)}
+.sw.on{transform:scale(1.18);box-shadow:0 0 0 calc(var(--u)*.7) #fff}
+.gopt{font-size:calc(var(--u)*3.8);padding:calc(var(--u)*1.3) calc(var(--u)*2.6);border-radius:calc(var(--u)*2.4);background:#fff;color:var(--ink);box-shadow:0 calc(var(--u)*.7) 0 rgba(0,0,0,.25);min-width:calc(var(--u)*19);line-height:1.1}
+.gopt.ok{background:var(--green);color:#fff}
+.gopt.bad{background:#ffd0d0;color:var(--rd)}
 /* konfety */
 .cf{position:absolute;top:-6%;width:calc(var(--u)*1.6);height:calc(var(--u)*2.4);border-radius:calc(var(--u)*.4);animation:fall linear forwards;pointer-events:none;z-index:4}
 /* menu */
@@ -171,7 +188,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 
 /* ---------- nastavení ---------- */
 const KEY='souboj-v1';
-let S={seat:'short',hc:-1,muted:false,names:['Červená','Modrá'],wins:[0,0],iy:[0,1],mat:[0,1]};
+let S={seat:'short',hc:-1,muted:false,names:['Červená','Modrá'],wins:[0,0],iy:[0,1],mat:[0,1],kr:[0,1]};
 try{ const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s&&typeof s==='object') S=Object.assign(S,s); }catch(e){}
 function save(){ try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} }
 
@@ -180,6 +197,8 @@ function layout(){
   const vw=innerWidth,vh=innerHeight,land=vw>vh; const rot=S.seat==='short'?land:!land; const BW=rot?vh:vw,BH=rot?vw:vh;
   board.style.width=BW+'px'; board.style.height=BH+'px'; board.style.transform=rot?'translate('+vw+'px,0) rotate(90deg)':'none';
   board.style.setProperty('--u',(Math.min(BW,BH)/100)+'px');
+  board._rot=rot; board._vw=vw;
+  if(phase==='play'&&cur&&cur.relayout) setTimeout(()=>{ if(phase==='play'&&cur&&cur.relayout) cur.relayout(); },80);
 }
 addEventListener('resize',layout); addEventListener('orientationchange',()=>setTimeout(layout,200));
 
@@ -226,6 +245,81 @@ function mkProblem(lvl){ const op=pick(lvl===0?['+','+','−','−','·']:['+','
 function options(pr,n){ const s=[pr.a]; const c=shuffle([1,-1,2,-2,3,-3,10,-10].concat(pr.f?[pr.f,-pr.f,2*pr.f,-2*pr.f]:[])); for(const d of c){ const v=pr.a+d; if(v>=0&&!s.includes(v)) s.push(v); if(s.length>=n) break; } return shuffle(s); }
 function ansRow(pr,n){ return '<div class="row">'+options(pr,n).map(v=>'<button class="ans" data-ans="'+v+'">'+v+'</button>').join('')+'</div>'; }
 function lvlPills(k,p,a,b){ return '<div class="row">'+[a,b].map((t,v)=>'<button class="pill'+(S[k][p]===v?' on':'')+'" data-act="lvl" data-k="'+k+'" data-p="'+p+'" data-v="'+v+'">'+t+'</button>').join('')+'</div>'; }
+
+/* ---------- kreativita: obrázky v mřížce 100 × 100 (y roste dolů) ---------- */
+const P2=a=>{ const o=[]; for(let i=0;i<a.length;i+=2) o.push([a[i],a[i+1]]); return o; };
+const fx=v=>+v.toFixed(1);
+function kruh(cx,cy,r,n,zavrit){ const o=[]; for(let i=0;i<(zavrit?n+1:n);i++){ const t=-Math.PI/2+i/n*Math.PI*2; o.push(fx(cx+r*Math.cos(t)),fx(cy+r*Math.sin(t))); } return o; }
+const KZ=(cx,cy,r,n)=>kruh(cx,cy,r,n,true);
+function hvezda(){ const o=[]; for(let i=0;i<10;i++){ const r=i%2?18:44,t=-Math.PI/2+i*Math.PI/5; o.push(fx(50+r*Math.cos(t)),fx(55+r*Math.sin(t))); } return o; }
+function paprsky(){ const o=[]; for(let i=0;i<8;i++){ const t=i*Math.PI/4; o.push([50+34*Math.cos(t),50+34*Math.sin(t),50+46*Math.cos(t),50+46*Math.sin(t)].map(fx)); } return o; }
+// m = hlavní obrys (uzavřený, z něj jsou tečky i plocha k vybarvení), x = detaily (otevřené čáry)
+const ART=[
+  {n:'hvězda',m:hvezda(),x:[]},
+  {n:'srdce',m:[50,86,22,62,10,44,12,28,22,17,36,15,50,28,64,15,78,17,88,28,90,44,78,62],x:[]},
+  {n:'domeček',m:[18,90,18,50,8,50,50,14,92,50,82,50,82,90],x:[[42,90,42,68,58,68,58,90],[26,58,36,58,36,68,26,68,26,58],[64,26,64,16,72,16,72,33]]},
+  {n:'ryba',m:[12,50,28,36,48,30,66,34,78,44,92,30,90,50,92,70,78,56,66,66,48,70,28,64],x:[KZ(27,46,3,10),[40,40,44,50,40,60]]},
+  {n:'loďka',m:[10,64,47,64,47,10,84,58,53,58,53,64,90,64,76,84,24,84],x:[[6,93,16,89,26,93,36,89,46,93,56,89,66,93,76,89,86,93,94,89]]},
+  {n:'kočka',m:[16,44,20,10,40,28,60,28,80,10,84,44,88,62,76,82,50,90,24,82,12,62],x:[KZ(38,52,4,12),KZ(62,52,4,12),[46,63,54,63,50,69,46,63],[18,64,40,68],[18,75,40,72],[82,64,60,68],[82,75,60,72]]},
+  {n:'raketa',m:[50,4,64,20,65,62,80,84,64,80,58,92,42,92,36,80,20,84,35,62,36,20],x:[KZ(50,42,7,14),[37,22,63,22]]},
+  {n:'stromek',m:[50,6,70,32,60,32,80,56,66,56,88,80,56,80,56,94,44,94,44,80,12,80,34,56,20,56,40,32,30,32],x:[KZ(40,66,3,8),KZ(62,46,3,8),KZ(58,68,3,8)]},
+  {n:'motýl',m:[50,30,68,10,90,18,88,42,64,50,84,62,82,86,60,82,50,62,40,82,18,86,16,62,36,50,12,42,10,18,32,10],x:[[50,28,50,66],[50,30,44,16],[50,30,56,16]]},
+  {n:'auto',m:[6,72,6,52,22,48,34,28,70,28,84,48,94,52,94,72],x:[KZ(28,74,10,16),KZ(72,74,10,16),[38,46,40,33,50,33,50,46,38,46],[54,46,54,33,66,33,76,46,54,46]]},
+  {n:'drak',m:[50,6,80,40,50,80,20,40],x:[[50,6,50,80],[20,40,80,40],[50,80,44,86,56,90,46,96]]},
+  {n:'zmrzlina',m:[30,46,26,34,32,20,44,12,56,12,68,20,74,34,70,46,50,94],x:[[36,60,64,60],[41,72,59,72],KZ(50,7,4,10)]},
+  {n:'houba',m:[8,50,14,32,28,18,50,12,72,18,86,32,92,50,62,50,64,88,36,88,38,50],x:[KZ(32,34,5,10),KZ(58,26,4,10),KZ(74,40,4,10)]},
+  {n:'sluníčko',m:kruh(50,50,28,16),x:paprsky()},
+  {n:'jablko',m:[50,28,62,22,76,26,86,40,86,58,78,76,64,88,50,84,36,88,22,76,14,58,14,40,24,26,38,22],x:[[50,28,52,12],[52,18,64,10,66,18,52,18]]},
+];
+// začátky pro Dokresli: pár čar a co z nich má vzniknout
+const START=[
+  {n:'kočku',s:[KZ(50,60,24,20),[33,43,30,20,45,37],[55,37,70,20,67,43]]},
+  {n:'sněhuláka',s:[KZ(50,76,20,20),KZ(50,44,14,18)]},
+  {n:'domeček',s:[[22,90,22,52,78,52,78,90,22,90]]},
+  {n:'auto',s:[KZ(30,78,9,14),KZ(70,78,9,14)]},
+  {n:'strom',s:[[44,94,46,62],[56,94,54,62]]},
+  {n:'obličej',s:[KZ(50,52,32,24)]},
+  {n:'rybu',s:[[78,50,94,36,94,64,78,50]]},
+  {n:'květinu',s:[[50,94,50,52],[50,74,38,66,50,70],[50,82,62,74,50,78]]},
+  {n:'příšerku',s:[[20,70,30,40,45,62,55,30,70,58,82,42]]},
+  {n:'balónky',s:[[50,94,36,60],[50,94,50,56],[50,94,64,60]]},
+  {n:'robota',s:[[34,18,66,18,66,44,34,44,34,18]]},
+  {n:'sluníčko a krajinu',s:[KZ(78,22,10,14),[4,80,30,70,54,78,80,66,96,74]]},
+];
+const KR_COL=['#1b1d3a','#ff4d5e','#ff8f1f','#ffc93c','#2fbf71','#2f80ed','#8e5cf6','#8b5a2b'];
+const BARVA=['#d42a43','#1a5bbd'], SVETLA=['#ff9aa6','#8dbbf6'];
+function zoneOf(el){ return Z[0].contains(el)?0:Z[1].contains(el)?1:-1; }
+function coalesced(e){ try{ const l=e.getCoalescedEvents&&e.getCoalescedEvents(); if(l&&l.length) return l; }catch(_){} return [e]; }
+function distSeg(q,a,b){ const vx=b[0]-a[0],vy=b[1]-a[1],L=vx*vx+vy*vy; let t=L?((q[0]-a[0])*vx+(q[1]-a[1])*vy)/L:0; t=Math.max(0,Math.min(1,t)); return Math.hypot(a[0]+t*vx-q[0],a[1]+t*vy-q[1]); }
+function plen(s){ let L=0; for(let i=1;i<s.length;i++) L+=Math.hypot(s[i][0]-s[i-1][0],s[i][1]-s[i-1][1]); return L; }
+function sample(s,step){ const o=[s[0]]; for(let i=1;i<s.length;i++){ const a=s[i-1],b=s[i],n=Math.max(1,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/step)); for(let j=1;j<=n;j++) o.push([a[0]+(b[0]-a[0])*j/n,a[1]+(b[1]-a[1])*j/n]); } return o; }
+// víc teček: dlouhé hrany rozdělí na kratší úseky
+function subdiv(m,T){ const o=[]; for(let i=0;i<m.length;i++){ const a=m[i],b=m[(i+1)%m.length]; o.push(a); const n=Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/T); for(let j=1;j<n;j++) o.push([fx(a[0]+(b[0]-a[0])*j/n),fx(a[1]+(b[1]-a[1])*j/n)]); } return o; }
+function inPoly(x,y,P){ let c=false; for(let i=0,j=P.length-1;i<P.length;j=i++){ const a=P[i],b=P[j]; if(((a[1]>y)!==(b[1]>y))&&(x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])) c=!c; } return c; }
+function pickArt(used){ let pool=ART.filter(a=>!used.includes(a)); if(!pool.length){ used.length=0; pool=ART.slice(); } const a=pick(pool); used.push(a); return a; }
+// kreslicí plocha v polovině hráče: dvě plátna (spodní ink, horní top) nad papírem
+function kzSetup(p,o){ const z=Z[p]; z.classList.remove('outp');
+  z.innerHTML='<div class="kz"><div class="kzhead">'+(o.head||'')+'</div><div class="kzcv"><canvas></canvas><canvas></canvas></div>'+(o.foot?'<div class="kzfoot">'+o.foot+'</div>':'')+'</div>';
+  return kzMeasure(p); }
+function kzMeasure(p){ const box=Z[p].querySelector('.kzcv'); const W=box.clientWidth,H=box.clientHeight,dpr=Math.min(2,devicePixelRatio||1);
+  const cx=[...box.querySelectorAll('canvas')].map(c=>{ c.width=Math.max(1,Math.round(W*dpr)); c.height=Math.max(1,Math.round(H*dpr)); const x=c.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); x.lineCap='round'; x.lineJoin='round'; return x; });
+  const Sq=Math.min(W,H)*0.9, k=Sq/100; return {p,box,W,H,k,ox:(W-Sq)/2,oy:(H-Sq)/2,ink:cx[0],top:cx[1]}; }
+// dotek → souřadnice obrázku 100 × 100; počítá s otočením desky (90°) i modré půlky (180°)
+function ptLocal(c,e){ let bx=e.clientX,by=e.clientY; if(board._rot){ const t=bx; bx=by; by=board._vw-t; }
+  const sd=SIDE[c.p]; bx-=sd.offsetLeft; by-=sd.offsetTop; if(c.p===1){ bx=sd.offsetWidth-bx; by=sd.offsetHeight-by; }
+  let el=c.box,ox=0,oy=0; while(el&&el!==sd){ ox+=el.offsetLeft; oy+=el.offsetTop; el=el.offsetParent; }
+  return [(bx-ox-c.ox)/c.k,(by-oy-c.oy)/c.k]; }
+function cesta(c,x,pts,closed){ x.beginPath(); pts.forEach((q,i)=>{ const X=c.ox+q[0]*c.k,Y=c.oy+q[1]*c.k; i?x.lineTo(X,Y):x.moveTo(X,Y); }); if(closed) x.closePath(); }
+function cara(c,x,pts,closed){ if(!pts.length) return; cesta(c,x,pts,closed); if(pts.length===1) x.lineTo(c.ox+pts[0][0]*c.k+.01,c.oy+pts[0][1]*c.k); x.stroke(); }
+function kresliArt(c,pic,fill){ [c.ink,c.top].forEach(x=>x.clearRect(0,0,c.W,c.H)); const x=c.top,m=P2(pic.m);
+  if(fill){ x.fillStyle=fill; cesta(c,x,m,true); x.fill(); }
+  x.strokeStyle='#1b1d3a'; x.lineWidth=Math.max(3,1.3*c.k); cara(c,x,m,true); x.lineWidth=Math.max(2,.9*c.k); pic.x.forEach(s=>cara(c,x,P2(s),false)); }
+const hitR=c=>Math.max(5.5,20/c.k);
+function kzHead(p,html){ const h=Z[p].querySelector('.kzhead'); if(h) h.innerHTML=html; }
+// konec kola u her na body: ukáže celý obrázek oběma, přičte bod a spustí další kolo
+function vyhodnotKolo(g,w,doKolika){ if(g.done&&w>=0) return; g.done=true; clearTimeout(g.rt); if(w>=0){ setScore(w,score[w]+1); Snd.ding(); }
+  [0,1].forEach(q=>{ Z[q].classList.remove('outp'); kresliArt(g.c[q],g.pic,w>=0?SVETLA[w]:'#ffe08a'); kzHead(q,'<span class="kzt">Je to <b>'+esc(g.pic.n)+'</b>! '+(w<0?'':q===w?'Bod pro tebe!':'Soupeř byl rychlejší.')+'</span>'); });
+  if(score[0]>=doKolika||score[1]>=doKolika) later(()=>finish(score[0]>score[1]?0:1),1800); else later(()=>g.round(),2600); }
 
 /* ---------- hry ---------- */
 const GAMES={
@@ -327,8 +421,145 @@ const GAMES={
         if(this.left[p]<=0){ this.done=true; setScore(p,score[p]+1); Snd.ding(); [0,1].forEach(q=>{ Z[q].classList.remove('outp'); Z[q].querySelectorAll('[data-num]').forEach(x=>{ if(+x.dataset.num%this.g[q].n===0) x.classList.add('ok'); }); }); this.next(); } }
       else { b.classList.add('bad'); Snd.buzz(); this.stopT[p]=Date.now()+1200; Z[p].classList.add('outp'); later(()=>{ if(!this.done) Z[p].classList.remove('outp'); b.classList.remove('bad'); },1200); } },
     next(){ if(score[0]>=3||score[1]>=3) later(()=>finish(score[0]>score[1]?0:1),1500); else later(()=>this.round(),2200); } },
+  /* ----- kreativita ----- */
+  kres:{name:'Dokresli',emoji:'🖍️',color:'#ffd6a5',desc:'Dostaneš pár čar a nápovědu. Dokresli obrázek, soupeř ti dá hvězdičky.',
+    rules:'Z pár čar dokresli obrázek podle nápovědy. Barvy vybereš dole. Až budeš hotový, ťukni na Hotovo. Pak každý dá soupeřovu obrázku hvězdičky a kdo jich dostane víc, vyhrál.',
+    start(){ this.used=this.used||[]; let pool=START.filter(s=>!this.used.includes(s)); if(!pool.length){ this.used=[]; pool=START.slice(); } this.st=pick(pool); this.used.push(this.st);
+      this.str=[[],[]]; this.col=[KR_COL[0],KR_COL[0]]; this.done=[false,false]; this.stage='draw'; this.ptr=new Map();
+      const head='<span class="kzt">Dokresli <b>'+esc(this.st.n)+'</b></span><button class="kzb" data-k="undo">↶ Zpět</button><button class="kzb" data-k="done">Hotovo ✓</button>';
+      const foot=KR_COL.map((c,i)=>'<button class="sw'+(i?'':' on')+'" data-col="'+c+'" style="background:'+c+'"></button>').join('');
+      this.c=[0,1].map(p=>kzSetup(p,{head,foot})); [0,1].forEach(p=>this.vykresli(p,p));
+      timer(75,()=>this.hodnoceni()); },
+    vykresli(p,kdo){ const c=this.c[p]; c.top.clearRect(0,0,c.W,c.H); c.top.strokeStyle='#1b1d3a'; c.top.lineWidth=Math.max(2.5,1.1*c.k); this.st.s.forEach(s=>cara(c,c.top,P2(s),false));
+      c.ink.clearRect(0,0,c.W,c.H); this.str[kdo].forEach(s=>this.tah(c,s,s.pts)); },
+    tah(c,s,pts){ c.ink.strokeStyle=s.c; c.ink.lineWidth=Math.max(3,s.w*c.k); cara(c,c.ink,pts,false); },
+    tap(e){ const p=zoneOf(e.target); if(p<0) return;
+      if(this.stage==='rate'){ const b=e.target.closest('[data-star]'); if(!b||this.dano[p]) return; this.dano[p]=+b.dataset.star; Snd.ding();
+        Z[p].querySelectorAll('[data-star]').forEach(x=>x.classList.add(x===b?'on':'dim'));
+        if(this.dano[0]&&this.dano[1]){ setScore(0,this.dano[1]); setScore(1,this.dano[0]); later(()=>finish(this.dano[1]>this.dano[0]?0:this.dano[0]>this.dano[1]?1:-1),1200); }
+        return; }
+      const b=e.target.closest('[data-col],[data-k]');
+      if(b){ if(this.done[p]) return;
+        if(b.dataset.col){ this.col[p]=b.dataset.col; Z[p].querySelectorAll('.sw').forEach(s=>s.classList.toggle('on',s===b)); Snd.tick(); }
+        else if(b.dataset.k==='undo'){ this.str[p].pop(); this.vykresli(p,p); Snd.tick(); }
+        else this.hotovo(p);
+        return; }
+      if(this.done[p]||!e.target.closest('.kzcv')) return;
+      const s={c:this.col[p],w:1.4,pts:[ptLocal(this.c[p],e)]}; this.str[p].push(s); this.ptr.set(e.pointerId,{p,s}); this.tah(this.c[p],s,s.pts); },
+    move(e){ const t=this.ptr.get(e.pointerId); if(!t||this.stage!=='draw'||this.done[t.p]) return; const c=this.c[t.p];
+      for(const ev of coalesced(e)){ const q=ptLocal(c,ev),a=t.s.pts[t.s.pts.length-1]; if(Math.hypot(q[0]-a[0],q[1]-a[1])<.5) continue; t.s.pts.push(q); this.tah(c,t.s,[a,q]); } },
+    up(e){ this.ptr.delete(e.pointerId); },
+    hotovo(p){ if(this.done[p]) return; this.done[p]=true; Snd.ding(); const b=Z[p].querySelector('[data-k=done]'); if(b) b.classList.add('on');
+      const cv=Z[p].querySelector('.kzcv'); if(cv) cv.insertAdjacentHTML('beforeend','<div class="kzwait">Hotovo! Čekám na soupeře…</div>');
+      if(this.done[0]&&this.done[1]) later(()=>this.hodnoceni(),600); },
+    hodnoceni(){ if(this.stage!=='draw') return; this.stage='rate'; clearAll(); document.querySelectorAll('.tbar').forEach(b=>b.remove()); this.ptr.clear(); this.dano=[0,0]; Snd.go();
+      const foot='<span class="kzt">Kolik hvězdiček dáš?</span>'+[1,2,3].map(n=>'<button class="kzb" data-star="'+n+'">'+'⭐'.repeat(n)+'</button>').join('');
+      this.c=[0,1].map(p=>kzSetup(p,{head:'<span class="kzt">Obrázek soupeře: <b>'+esc(this.st.n)+'</b></span>',foot})); [0,1].forEach(p=>this.vykresli(p,1-p)); },
+    relayout(){ this.c=[0,1].map(p=>kzMeasure(p)); [0,1].forEach(p=>this.vykresli(p,this.stage==='rate'?1-p:p)); } },
+  dots:{name:'Spoj tečky',emoji:'🔗',color:'#caffbf',desc:'Spoj prstem čísla od 1 do konce. Kdo první dokončí obrázek, má bod.',
+    rules:'Polož prst na jedničku a táhni přes čísla popořadě: 1, 2, 3… Když prst zvedneš, pokračuj z posledního spojeného čísla. Kdo první spojí všechna čísla, má bod. Hraje se do 3.',
+    extra:p=>lvlPills('kr',p,'méně teček','víc teček'),
+    start(){ if(S.hc>=0) setScore(S.hc,1); this.used=[]; this.round(); },
+    round(){ this.pic=pickArt(this.used); this.done=false; this.ptr=new Map(); const tok=this.tok={}; const m=P2(this.pic.m);
+      this.s=[0,1].map(p=>({d:subdiv(m,S.kr[p]===0?34:17),n:0,t:Date.now(),live:null}));
+      this.cen=[m.reduce((a,q)=>a+q[0],0)/m.length,m.reduce((a,q)=>a+q[1],0)/m.length];
+      this.c=[0,1].map(p=>kzSetup(p,{head:'<span class="kzt">Spoj čísla <b>1</b> až <b>'+this.s[p].d.length+'</b></span>'}));
+      [0,1].forEach(p=>this.draw(p));
+      this.rt=later(()=>{ if(!this.done&&this.tok===tok) vyhodnotKolo(this,-1,3); },120000);
+      const tik=()=>{ if(cur!==this||this.tok!==tok||this.done) return; [0,1].forEach(p=>this.draw(p)); later(tik,600); }; later(tik,600); },
+    draw(p){ const c=this.c[p],s=this.s[p],x=c.top,d=s.d,k=c.k,col=BARVA[p]; x.clearRect(0,0,c.W,c.H);
+      x.strokeStyle=col; x.lineWidth=Math.max(3,1.1*k);
+      if(s.n>1) cara(c,x,d.slice(0,s.n),false);
+      if(s.live&&s.n>0){ x.globalAlpha=.4; cara(c,x,[d[s.n-1],s.live],false); x.globalAlpha=1; }
+      const r=Math.max(4.5,1.3*k),fs=Math.max(14,3.9*k),puls=.5+.5*Math.sin(Date.now()/220),napoveda=Date.now()-s.t>5000;
+      x.font='800 '+fs+'px "Baloo 2",system-ui,sans-serif'; x.textAlign='center'; x.textBaseline='middle';
+      d.forEach((q,i)=>{ const X=c.ox+q[0]*k,Y=c.oy+q[1]*k,hot=i<s.n;
+        if((i===0&&s.n===0)||(i===s.n-1&&!s.live)||(i===s.n&&s.n>0&&napoveda)){ x.strokeStyle=i===s.n?'#e0a800':col; x.lineWidth=Math.max(2,.6*k); x.beginPath(); x.arc(X,Y,r*(1.9+.6*puls),0,7); x.stroke(); }
+        x.fillStyle=hot?col:'#1b1d3a'; x.beginPath(); x.arc(X,Y,r,0,7); x.fill();
+        const dx=q[0]-this.cen[0],dy=q[1]-this.cen[1],L=Math.hypot(dx,dy)||1; x.fillText(String(i+1),X+dx/L*4.4*k,Y+dy/L*4.4*k); }); },
+    tap(e){ if(this.done||!e.target.closest('.kzcv')) return; const p=zoneOf(e.target); if(p<0) return; const s=this.s[p],c=this.c[p],q=ptLocal(c,e);
+      const a=s.d[Math.max(0,s.n-1)]; if(Math.hypot(q[0]-a[0],q[1]-a[1])>hitR(c)) return;
+      if(s.n===0){ s.n=1; this.blip(1); }
+      this.ptr.set(e.pointerId,{p,last:q}); s.live=q; s.t=Date.now(); this.draw(p); },
+    move(e){ const t=this.ptr.get(e.pointerId); if(!t||this.done) return; const s=this.s[t.p],c=this.c[t.p],hr=hitR(c);
+      for(const ev of coalesced(e)){ const q=ptLocal(c,ev);
+        while(s.n<s.d.length&&distSeg(s.d[s.n],t.last,q)<=hr){ s.n++; s.t=Date.now(); this.blip(s.n); }
+        t.last=q; s.live=q;
+        if(s.n>=s.d.length){ s.live=null; vyhodnotKolo(this,t.p,3); return; } }
+      this.draw(t.p); },
+    up(e){ const t=this.ptr.get(e.pointerId); if(!t) return; this.ptr.delete(e.pointerId); if(this.done) return; this.s[t.p].live=null; this.draw(t.p); },
+    blip(n){ Snd.tone(420+Math.min(n,40)*22,.06,{type:'triangle',vol:.09}); },
+    relayout(){ this.c=[0,1].map(p=>kzMeasure(p)); if(this.done) [0,1].forEach(q=>kresliArt(this.c[q],this.pic,'#ffe08a')); else [0,1].forEach(p=>this.draw(p)); } },
+  trace:{name:'Obtáhni',emoji:'✍️',color:'#bde0fe',desc:'Obtáhni prstem čáry obrázku. Kdo první obtáhne celý, má bod.',
+    rules:'Obtáhni prstem všechny čárkované čáry obrázku. Když s prstem utečeš daleko od čáry, musíš ho zvednout a začít znovu. Kdo první obtáhne celý obrázek, má bod. Hraje se do 3.',
+    start(){ if(S.hc>=0) setScore(S.hc,1); this.used=[]; this.round(); },
+    round(){ this.pic=pickArt(this.used); this.done=false; this.ptr=new Map(); const tok=this.tok={};
+      const m=P2(this.pic.m); this.tahy=[m.concat([m[0]])].concat(this.pic.x.map(P2));
+      this.cp=[]; this.tahy.forEach((s,si)=>sample(s,3).forEach(q=>this.cp.push([q[0],q[1],si])));
+      this.s=[0,1].map(()=>({cov:new Uint8Array(this.cp.length),n:0}));
+      this.c=[0,1].map(p=>kzSetup(p,{head:'<span class="kzt">Obtáhni <b>'+esc(this.pic.n)+'</b></span><span class="kzpct" id="pct'+p+'">0 %</span>'}));
+      [0,1].forEach(p=>{ this.vodit(p); this.draw(p); });
+      this.rt=later(()=>{ if(!this.done&&this.tok===tok) vyhodnotKolo(this,-1,3); },120000); },
+    vodit(p){ const c=this.c[p],x=c.ink; x.clearRect(0,0,c.W,c.H); x.strokeStyle='rgba(27,29,58,.4)'; x.lineWidth=Math.max(3,1.5*c.k); x.setLineDash([1.6*c.k,2.2*c.k]); this.tahy.forEach(s=>cara(c,x,s,false)); x.setLineDash([]); },
+    draw(p){ const c=this.c[p],x=c.top,s=this.s[p],cp=this.cp; x.clearRect(0,0,c.W,c.H); x.strokeStyle=BARVA[p]; x.lineWidth=Math.max(4,1.6*c.k); x.beginPath();
+      for(let i=1;i<cp.length;i++) if(s.cov[i]&&s.cov[i-1]&&cp[i][2]===cp[i-1][2]){ x.moveTo(c.ox+cp[i-1][0]*c.k,c.oy+cp[i-1][1]*c.k); x.lineTo(c.ox+cp[i][0]*c.k,c.oy+cp[i][1]*c.k); }
+      x.stroke(); const el=$('#pct'+p); if(el) el.textContent=Math.floor(100*s.n/cp.length)+' %'; },
+    blizko(q){ let m=1e9; for(const a of this.cp){ const d=Math.hypot(a[0]-q[0],a[1]-q[1]); if(d<m) m=d; } return m; },
+    kryj(p,a,b){ const s=this.s[p]; let z=0; this.cp.forEach((q,i)=>{ if(!s.cov[i]&&distSeg(q,a,b)<=4.5){ s.cov[i]=1; s.n++; z++; } });
+      if(z){ this.draw(p); if(s.n>=this.cp.length*0.97) vyhodnotKolo(this,p,3); } },
+    tap(e){ if(this.done||!e.target.closest('.kzcv')) return; const p=zoneOf(e.target); if(p<0) return; const q=ptLocal(this.c[p],e),ok=this.blizko(q)<=12;
+      this.ptr.set(e.pointerId,{p,last:q,ok}); if(ok) this.kryj(p,q,q); },
+    move(e){ const t=this.ptr.get(e.pointerId); if(!t||!t.ok||this.done) return; const c=this.c[t.p];
+      for(const ev of coalesced(e)){ const q=ptLocal(c,ev); if(this.blizko(q)>9){ t.ok=false; this.mimo(t.p); return; } this.kryj(t.p,t.last,q); if(this.done) return; t.last=q; } },
+    mimo(p){ Snd.buzz(); Z[p].classList.add('outp'); const el=$('#pct'+p); if(el) el.textContent='mimo!'; const tok=this.tok; later(()=>{ if(this.tok!==tok||this.done) return; Z[p].classList.remove('outp'); this.draw(p); },450); },
+    up(e){ this.ptr.delete(e.pointerId); },
+    relayout(){ this.c=[0,1].map(p=>kzMeasure(p)); if(this.done) [0,1].forEach(q=>kresliArt(this.c[q],this.pic,'#ffe08a')); else [0,1].forEach(p=>{ this.vodit(p); this.draw(p); }); } },
+  fill:{name:'Vybarvi',emoji:'🖌️',color:'#ffc6ff',desc:'Vybarvi prstem celý obrázek. Kdo bude první hotový, má bod.',
+    rules:'Vybarvi prstem celý obrázek uvnitř čáry. Procenta nahoře ukazují, kolik už máš. Kdo první vybarví celý obrázek, má bod. Hraje se do 3.',
+    R:5.5,
+    start(){ if(S.hc>=0) setScore(S.hc,1); this.used=[]; this.round(); },
+    round(){ this.pic=pickArt(this.used); this.done=false; this.ptr=new Map(); const tok=this.tok={}; const m=this.m=P2(this.pic.m);
+      let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; m.forEach(q=>{ x0=Math.min(x0,q[0]); y0=Math.min(y0,q[1]); x1=Math.max(x1,q[0]); y1=Math.max(y1,q[1]); });
+      this.bunky=[]; for(let y=y0+1.6;y<y1;y+=3.2) for(let x=x0+1.6;x<x1;x+=3.2) if(inPoly(x,y,m)) this.bunky.push([x,y]);
+      this.s=[0,1].map(()=>({cov:new Uint8Array(this.bunky.length),n:0,tahy:[]}));
+      this.c=[0,1].map(p=>kzSetup(p,{head:'<span class="kzt">Vybarvi <b>'+esc(this.pic.n)+'</b></span><span class="kzpct" id="pct'+p+'">0 %</span>'}));
+      [0,1].forEach(p=>this.cary(p));
+      this.rt=later(()=>{ if(!this.done&&this.tok===tok) vyhodnotKolo(this,-1,3); },120000); },
+    cary(p){ const c=this.c[p],x=c.top; x.clearRect(0,0,c.W,c.H); x.strokeStyle='#1b1d3a'; x.lineWidth=Math.max(3,1.2*c.k); cara(c,x,this.m,true); x.lineWidth=Math.max(2,.8*c.k); this.pic.x.forEach(s=>cara(c,x,P2(s),false)); },
+    stopa(p,a,b){ const c=this.c[p],x=c.ink; x.save(); cesta(c,x,this.m,true); x.clip(); x.strokeStyle=SVETLA[p]; x.lineWidth=this.R*2*c.k; cara(c,x,[a,b],false); x.restore(); },
+    barvi(p,a,b){ const s=this.s[p]; this.stopa(p,a,b); s.tahy.push([a,b]); let z=0;
+      this.bunky.forEach((q,i)=>{ if(!s.cov[i]&&distSeg(q,a,b)<=this.R){ s.cov[i]=1; s.n++; z++; } });
+      if(z){ const el=$('#pct'+p); if(el) el.textContent=Math.floor(100*s.n/this.bunky.length)+' %'; if(s.n>=this.bunky.length*0.93) vyhodnotKolo(this,p,3); } },
+    tap(e){ if(this.done||!e.target.closest('.kzcv')) return; const p=zoneOf(e.target); if(p<0) return; const q=ptLocal(this.c[p],e); this.ptr.set(e.pointerId,{p,last:q}); this.barvi(p,q,[q[0]+.01,q[1]]); },
+    move(e){ const t=this.ptr.get(e.pointerId); if(!t||this.done) return; const c=this.c[t.p];
+      for(const ev of coalesced(e)){ const q=ptLocal(c,ev); if(Math.hypot(q[0]-t.last[0],q[1]-t.last[1])<.6) continue; this.barvi(t.p,t.last,q); t.last=q; if(this.done) return; } },
+    up(e){ this.ptr.delete(e.pointerId); },
+    relayout(){ this.c=[0,1].map(p=>kzMeasure(p)); if(this.done){ [0,1].forEach(q=>kresliArt(this.c[q],this.pic,'#ffe08a')); return; } [0,1].forEach(p=>{ this.cary(p); this.s[p].tahy.forEach(t=>this.stopa(p,t[0],t[1])); }); } },
+  guess:{name:'Hádej obrázek',emoji:'🤔',color:'#fdffb6',desc:'Obrázek se pomalu kreslí. Kdo první pozná, co to je, má bod.',
+    rules:'Na obou stranách se pomalu kreslí stejný obrázek. Jakmile poznáš, co to je, ťukni na správné slovo. Chyba tě v tom kole vyřadí. Hraje se do 5.',
+    start(){ if(S.hc>=0) setScore(S.hc,1); this.used=[]; this.round(); },
+    round(){ this.pic=pickArt(this.used); this.done=false; this.out=[false,false]; const tok=this.tok={};
+      const opts=shuffle([this.pic.n].concat(shuffle(ART.filter(a=>a!==this.pic).map(a=>a.n)).slice(0,3)));
+      this.c=[0,1].map(p=>kzSetup(p,{head:'<span class="kzt">Co to bude?</span>',foot:opts.map(o=>'<button class="gopt" data-gs="'+esc(o)+'">'+esc(o)+'</button>').join('')}));
+      const m=P2(this.pic.m),st=Math.floor(rnd(0,m.length)); this.path=[m.slice(st).concat(m.slice(0,st+1))].concat(this.pic.x.map(P2)); this.len=this.path.reduce((a,s)=>a+plen(s),0);
+      this.t0=performance.now(); const D=9000;
+      const frame=()=>{ if(cur!==this||this.tok!==tok||phase!=='play'||this.done) return; const f=Math.min(1,(performance.now()-this.t0)/D); [0,1].forEach(p=>this.part(p,f));
+        if(f<1) requestAnimationFrame(frame); else this.rt=later(()=>{ if(!this.done&&this.tok===tok) this.konec(-1); },4000); };
+      requestAnimationFrame(frame); },
+    part(p,f){ const c=this.c[p],x=c.top; x.clearRect(0,0,c.W,c.H); x.strokeStyle='#1b1d3a'; x.lineWidth=Math.max(3,1.3*c.k); let left=f*this.len;
+      for(const s of this.path){ if(left<=0) break; x.beginPath(); x.moveTo(c.ox+s[0][0]*c.k,c.oy+s[0][1]*c.k);
+        for(let i=1;i<s.length&&left>0;i++){ const a=s[i-1],b=s[i],L=Math.hypot(b[0]-a[0],b[1]-a[1]),t=L?Math.min(1,left/L):1; x.lineTo(c.ox+(a[0]+(b[0]-a[0])*t)*c.k,c.oy+(a[1]+(b[1]-a[1])*t)*c.k); left-=L; }
+        x.stroke(); } },
+    tap(e){ const b=e.target.closest('[data-gs]'); if(!b||this.done) return; const p=zoneOf(b); if(p<0||this.out[p]) return;
+      if(b.dataset.gs===this.pic.n){ b.classList.add('ok'); this.konec(p); }
+      else { this.out[p]=true; b.classList.add('bad'); Z[p].classList.add('outp'); Snd.buzz(); kzHead(p,'<span class="kzt">Chyba! Toto kolo čekáš.</span>'); if(this.out[1-p]) this.konec(-1); } },
+    konec(w){ if(this.done) return; this.done=true; clearTimeout(this.rt); if(w>=0){ setScore(w,score[w]+1); Snd.ding(); }
+      [0,1].forEach(q=>{ Z[q].classList.remove('outp'); kresliArt(this.c[q],this.pic,'#ffe08a'); Z[q].querySelectorAll('[data-gs]').forEach(b=>{ if(b.dataset.gs===this.pic.n) b.classList.add('ok'); });
+        kzHead(q,'<span class="kzt">Je to <b>'+esc(this.pic.n)+'</b>! '+(w<0?'':q===w?'Bod pro tebe!':'Soupeř byl rychlejší.')+'</span>'); });
+      if(score[0]>=5||score[1]>=5) later(()=>finish(score[0]>score[1]?0:1),1800); else later(()=>this.round(),2400); },
+    relayout(){ this.c=[0,1].map(p=>kzMeasure(p)); if(this.done) [0,1].forEach(q=>kresliArt(this.c[q],this.pic,'#ffe08a')); } },
 };
-const SEKCE=[{t:'Postřeh a rychlost',ids:['tug','react','tiles','moles','iy']},{t:'Počítání',ids:['mat','race','bal','mult']}];
+const SEKCE=[{t:'Postřeh a rychlost',ids:['tug','react','tiles','moles','iy']},{t:'Počítání',ids:['mat','race','bal','mult']},{t:'Kreativita',ids:['kres','dots','trace','fill','guess']}];
 
 /* ---------- průběh: menu → připraveni → odpočet → hra → výsledek ---------- */
 function renderMenu(){
@@ -380,12 +611,15 @@ board.addEventListener('pointerdown',e=>{
   const a=e.target.closest('[data-act]'); if(a){ e.preventDefault(); act(a.dataset.act,a); return; }
   if(phase==='play'&&cur){ e.preventDefault(); cur.tap(e); }
 },{passive:false});
+board.addEventListener('pointermove',e=>{ if(phase==='play'&&cur&&cur.move){ e.preventDefault(); cur.move(e); } },{passive:false});
+['pointerup','pointercancel'].forEach(t=>board.addEventListener(t,e=>{ if(phase==='play'&&cur&&cur.up) cur.up(e); }));
 document.addEventListener('touchmove',e=>{ if(phase!=='menu') e.preventDefault(); },{passive:false});
 ['gesturestart','gesturechange','dblclick','contextmenu'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
 let lock=null;
 function wake(){ if(lock||!('wakeLock' in navigator)) return; navigator.wakeLock.request('screen').then(l=>{ lock=l; l.addEventListener('release',()=>{ lock=null; }); }).catch(()=>{}); }
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) wake(); });
 
+if(/[?&]test\b/.test(location.search)) window.__souboj={cur:()=>cur,S};
 layout(); showMenu();
 })();
 </script>
